@@ -118,7 +118,7 @@ unsigned char* GetGramMatrixGPU(unsigned char* bigVector, float& time)
 
 	CHECK(cudaEventRecord(startCUDA, 0));
 
-	calculate_GramMatrix_GPU<<<sizeGramMatrix, 1024>>>(bigVector_GPU, matrixGram_GPU, sizeGramMatrix,
+	calculate_GramMatrix_GPU<<<(sizeGramMatrix + 1023) / 1024, 1024>>>(bigVector_GPU, matrixGram_GPU, sizeGramMatrix,
 		COUNT_OF_ELEMENTS, COUNT_OF_VECTORS);
 
 	CHECK(cudaEventRecord(stopCUDA, 0));
