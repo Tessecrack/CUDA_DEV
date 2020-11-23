@@ -1,0 +1,2 @@
+D:\Desktop\GramMatrix\x64\Debug\GramMatrix.exe
+D:\Desktop\GramMatrix\x64\Debug\GramMatrix.pdb
