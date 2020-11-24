@@ -12,12 +12,12 @@
         exit(1);\
     } }
 
-#define MAX_MEMORY_VECTOR 104857600																	//100 МБ
+#define MAX_MEMORY_VECTOR 104857600	//100 МБ
 
-#define COUNT_OF_ELEMENTS_IN_SYSTEM 27																//общее количество элементов в системе векторов
-#define COUNT_OF_VECTORS_IN_SYSTEM 3																//количество векторов в системе
-#define COUNT_OF_ELEMENTS_IN_VECTOR (COUNT_OF_ELEMENTS_IN_SYSTEM / COUNT_OF_VECTORS_IN_SYSTEM)		//количество элементов в одном векторе
-#define SIZE_GRAM_MATRIX  (COUNT_OF_VECTORS_IN_SYSTEM * COUNT_OF_VECTORS_IN_SYSTEM)					//размер матрицы Грама
+#define COUNT_OF_ELEMENTS_IN_SYSTEM 27  //общее количество элементов в системе векторов
+#define COUNT_OF_VECTORS_IN_SYSTEM 3	//количество векторов в системе
+#define COUNT_OF_ELEMENTS_IN_VECTOR (COUNT_OF_ELEMENTS_IN_SYSTEM / COUNT_OF_VECTORS_IN_SYSTEM) //количество элементов в одном векторе
+#define SIZE_GRAM_MATRIX  (COUNT_OF_VECTORS_IN_SYSTEM * COUNT_OF_VECTORS_IN_SYSTEM)			   //размер матрицы Грама
 
 using namespace std;
 
