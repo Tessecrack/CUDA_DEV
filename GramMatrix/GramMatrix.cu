@@ -12,77 +12,68 @@
         exit(1);\
     } }
 
-#define MEMORY_VECTOR 104857600
+#define MAX_MEMORY_VECTOR 104857600
 
-/*
-	104857600
-	4294967296
-*/
-/*
-done  (1 block, sizeGramMatrix = 1024, countOfVectors = 32)
-crush (1 block, sizeGramMatrix = 1089, countOfVectors = 33)
-*/
-
-#define SIZE_BIG_VECTOR 104857600
-#define COUNT_OF_VECTORS 64
+#define COUNT_OF_ELEMENTS_IN_SYSTEM 27
+#define COUNT_OF_VECTORS_IN_SYSTEM 3
+#define COUNT_OF_ELEMENTS_IN_VECTOR (COUNT_OF_ELEMENTS_IN_SYSTEM / COUNT_OF_VECTORS_IN_SYSTEM)
+#define SIZE_GRAM_MATRIX  (COUNT_OF_VECTORS_IN_SYSTEM * COUNT_OF_VECTORS_IN_SYSTEM)
 
 using namespace std;
 
-static const size_t COUNT_OF_ELEMENTS = (int)SIZE_BIG_VECTOR / (int)COUNT_OF_VECTORS; // in one vector
-
 inline void Info()
 {
-	cout << "Size big vector: " << SIZE_BIG_VECTOR 
-		<< "\nCount of vectors: " << COUNT_OF_VECTORS
-		<< "\nCount of elements in one vector: " << COUNT_OF_ELEMENTS << endl;
+	cout << "Size of system: " << COUNT_OF_ELEMENTS_IN_SYSTEM 
+		<< "\nCount of vectors: " << COUNT_OF_VECTORS_IN_SYSTEM
+		<< "\nCount of elements in one vector: " << COUNT_OF_ELEMENTS_IN_VECTOR << endl;
 }
+void InfoResult(unsigned char* matrix_Host, unsigned char* matrix_Device);
 
 void PrintBigVector(unsigned char* bigVector);
+
 void PrintVector(unsigned char* vector, size_t size);
+
 unsigned char* GetRandomBigVector();
+
 unsigned char* GetGramMatrixCPU(unsigned char* bigVector, float& time);
+
 unsigned char* GetGramMatrixGPU(unsigned char* bigVector, float& time);
+
 bool IsEqual(unsigned char* firstVector, unsigned char* secondVector, size_t size);
 
+void Check(unsigned char* matrix_Host, unsigned char* matrix_Device);
 
-__global__
-void calculate_GramMatrix_GPU(unsigned char* bigVector, unsigned char* gramMatrix, size_t sizeGramMatrix,
-	size_t countOfElementsInVector, size_t countOfVectors)
+__global__ void calculate_GramMatrix_GPU(unsigned char* bigVector, unsigned char* gramMatrix)
 {
 	int index = blockIdx.x * blockDim.x + threadIdx.x;
-	if (index >= sizeGramMatrix) return;
-	for (int j = 0; j < countOfElementsInVector; j++)
-		gramMatrix[index] +=
-			bigVector[(index / countOfVectors) * countOfElementsInVector + j] *
-			bigVector[(index % countOfVectors) * countOfElementsInVector + j];
+	if (index >= SIZE_GRAM_MATRIX) return;
+	int reg_temp = 0;
+	for (int j = 0; j < COUNT_OF_ELEMENTS_IN_VECTOR; j++)
+	{
+		reg_temp +=
+			bigVector[(index / COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j] *
+			bigVector[(index % COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j];
+	}
+	gramMatrix[index] = reg_temp;
 }
 
 int main()
 {
 	Info();
 	float timeCPU = 0.0f, timeGPU = 0.0f;
-
 	unsigned char* bigVector = GetRandomBigVector();
-
-	bool isForPrint = SIZE_BIG_VECTOR <= 2048;
-
+	bool isForPrint = COUNT_OF_ELEMENTS_IN_SYSTEM <= 2048;
 	if (isForPrint) PrintBigVector(bigVector);
 
-	size_t sizeGramMatrix = COUNT_OF_VECTORS * COUNT_OF_VECTORS;
-	cout << "\nSize Gram matrix: " << sizeGramMatrix << endl;
+	cout << "\nSize Gram matrix: " << SIZE_GRAM_MATRIX << endl;
 
 	unsigned char* matrixGramCPU = GetGramMatrixCPU(bigVector, timeCPU);
-	cout << "\nGram matrix CPU: " << endl;
-	if (isForPrint) PrintVector(matrixGramCPU, sizeGramMatrix);
+	cout << "\nCPU\n";
 
 	unsigned char* matrixGramGPU = GetGramMatrixGPU(bigVector, timeGPU);
-	cout << "\nGram matrix GPU: " << endl;
-	if (isForPrint) PrintVector(matrixGramGPU, sizeGramMatrix);
+	cout << "\nGPU\n";
 
-	cout << "\nCheck...\n";
-	if (IsEqual(matrixGramCPU, matrixGramGPU, sizeGramMatrix))
-		cout << "That's right! :)\n";
-	else cout << "Wrong! :(\n";
+	Check(matrixGramCPU, matrixGramGPU);
 
 	cout << "\n--------\n";
 	cout << "Time CPU: " << timeCPU << endl;
@@ -93,14 +84,12 @@ int main()
 }
 unsigned char* GetGramMatrixGPU(unsigned char* bigVector, float& time)
 {
-	int sizeGramMatrix = COUNT_OF_VECTORS * COUNT_OF_VECTORS;
+	unsigned char* matrixGram = new unsigned char[SIZE_GRAM_MATRIX];
 
-	unsigned char* matrixGram = new unsigned char[sizeGramMatrix];
+	int memoryForGramMatrix = sizeof(unsigned char) * SIZE_GRAM_MATRIX;
+	int memoryForBigVector = sizeof(unsigned char) * COUNT_OF_ELEMENTS_IN_SYSTEM;
 
-	int memoryForGramMatrix = sizeof(unsigned char) * sizeGramMatrix;
-	int memoryForBigVector = sizeof(unsigned char) * SIZE_BIG_VECTOR;
-
-	for (int i = 0; i < sizeGramMatrix; i++)
+	for (int i = 0; i < SIZE_GRAM_MATRIX; i++)
 		matrixGram[i] = 0;
 
 	unsigned char* bigVector_GPU; 
@@ -118,8 +107,7 @@ unsigned char* GetGramMatrixGPU(unsigned char* bigVector, float& time)
 
 	CHECK(cudaEventRecord(startCUDA, 0));
 
-	calculate_GramMatrix_GPU<<<(sizeGramMatrix + 1023) / 1024, 1024>>>(bigVector_GPU, matrixGram_GPU, sizeGramMatrix,
-		COUNT_OF_ELEMENTS, COUNT_OF_VECTORS);
+	calculate_GramMatrix_GPU<<<(SIZE_GRAM_MATRIX + 1023) / 1024, 1024>>>(bigVector_GPU, matrixGram_GPU);
 
 	CHECK(cudaEventRecord(stopCUDA, 0));
 	CHECK(cudaEventSynchronize(stopCUDA));
@@ -134,23 +122,29 @@ unsigned char* GetGramMatrixGPU(unsigned char* bigVector, float& time)
 
 unsigned char* GetGramMatrixCPU(unsigned char* bigVector, float& time)
 {
-	int sizeGramMatrix = COUNT_OF_VECTORS * COUNT_OF_VECTORS;
+	int sizeGramMatrix = COUNT_OF_VECTORS_IN_SYSTEM * COUNT_OF_VECTORS_IN_SYSTEM;
 	unsigned char* matrixGram = new unsigned char[sizeGramMatrix];
 
 	time = clock();
 	for (int i = 0; i < sizeGramMatrix; i++)
 	{
 		matrixGram[i] = 0;
-		for (int j = 0; j < COUNT_OF_ELEMENTS; j++)
+		for (int j = 0; j < COUNT_OF_ELEMENTS_IN_VECTOR; j++)
 			matrixGram[i] +=
-				bigVector[(i / COUNT_OF_VECTORS) * COUNT_OF_ELEMENTS + j] *
-				bigVector[(i % COUNT_OF_VECTORS) * COUNT_OF_ELEMENTS + j];
+				bigVector[(i / COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j] *
+				bigVector[(i % COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j];
 	}
 	time /= CLOCKS_PER_SEC;
 	return matrixGram;
 
 }
-
+void Check(unsigned char* matrix_Host, unsigned char* matrix_Device)
+{
+	cout << "\nCheck...\n";
+	if (IsEqual(matrix_Host, matrix_Device, SIZE_GRAM_MATRIX))
+		cout << "That's right! :)\n";
+	else cout << "Wrong! :(\n";
+}
 bool IsEqual(unsigned char* firstVector, unsigned char* secondVector, size_t size)
 {	
 	for (int i = 0; i < size; i++)
@@ -162,20 +156,28 @@ bool IsEqual(unsigned char* firstVector, unsigned char* secondVector, size_t siz
 }
 unsigned char* GetRandomBigVector()
 {
-	unsigned char* vector = new unsigned char[SIZE_BIG_VECTOR];
-	for (int i = 0; i < SIZE_BIG_VECTOR; i++)
+	unsigned char* vector = new unsigned char[COUNT_OF_ELEMENTS_IN_SYSTEM];
+	for (int i = 0; i < COUNT_OF_ELEMENTS_IN_SYSTEM; i++)
 		vector[i] = rand() % 9 + 1;
 	return vector;
 }
 
+void InfoResult(unsigned char* matrix_Host, unsigned char* matrix_Device)
+{
+	cout << "\nGram matrix CPU: " << endl;
+	PrintVector(matrix_Host, SIZE_GRAM_MATRIX);
+
+	cout << "\nGram matrix GPU: " << endl;
+	PrintVector(matrix_Device, SIZE_GRAM_MATRIX);
+}
 
 void PrintBigVector(unsigned char* bigVector)
 {
-	bool step = SIZE_BIG_VECTOR < 10;
+	bool step = COUNT_OF_ELEMENTS_IN_SYSTEM < 10;
 	cout << "\nBig vector:\n\n";
-	for (int i = 0, j = 0; i < SIZE_BIG_VECTOR; i++, j++)
+	for (int i = 0, j = 0; i < COUNT_OF_ELEMENTS_IN_SYSTEM; i++, j++)
 	{
-		if (j == COUNT_OF_ELEMENTS && step)
+		if (j == COUNT_OF_ELEMENTS_IN_VECTOR && step)
 		{
 			cout << endl;
 			j = 0;
