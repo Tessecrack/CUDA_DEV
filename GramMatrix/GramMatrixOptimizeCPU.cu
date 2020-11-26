@@ -129,12 +129,11 @@ unsigned char* GetGramMatrixGPU(unsigned char* systemOfVectors, float& time_d)
 
 unsigned char* GetGramMatrixCPU(unsigned char* systemOfVectors, float& time_h)
 {
-	int sizeGramMatrix = COUNT_OF_VECTORS_IN_SYSTEM * COUNT_OF_VECTORS_IN_SYSTEM;
-	unsigned char* matrixGram = new unsigned char[sizeGramMatrix];
+	unsigned char* matrixGram = new unsigned char[SIZE_GRAM_MATRIX];
 	for (int i = 0; i < SIZE_GRAM_MATRIX; i++) matrixGram[i] = 0;
 	cout << "Calculate on HOST...\n";
 	time_h = clock();
-	for (int i = 0; i < sizeGramMatrix; i++)
+	for (int i = 0; i < SIZE_GRAM_MATRIX; i++)
 	{
 		int currentRow = (i / COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_VECTORS_IN_SYSTEM;
 		int shiftCol  = (i / COUNT_OF_VECTORS_IN_SYSTEM);
@@ -147,7 +146,6 @@ unsigned char* GetGramMatrixCPU(unsigned char* systemOfVectors, float& time_h)
 			systemOfVectors[(i % COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j];
 		matrixGram[currentIndexMainDiag + (i - currentIndexMainDiag) * COUNT_OF_VECTORS_IN_SYSTEM] = matrixGram[i] = temp;
 	}
-	
 	cout << "Done\n";
 	time_h /= CLOCKS_PER_SEC;
 	return matrixGram;
