@@ -137,23 +137,20 @@ unsigned char* GetGramMatrixCPU(unsigned char* systemOfVectors, float& time_h)
 	for (int i = 0; i < sizeGramMatrix; i++)
 	{
 		int currentRow = (i / COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_VECTORS_IN_SYSTEM;
-		int offsetCol  = (i / COUNT_OF_VECTORS_IN_SYSTEM);
-		int currentIndexMainDiag = currentRow + offsetCol;
+		int shiftCol  = (i / COUNT_OF_VECTORS_IN_SYSTEM);
+		int currentIndexMainDiag = currentRow + shiftCol;
 		if (i < currentIndexMainDiag) continue;
-		else
-		{
-			unsigned char temp = 0;
-			for (int j = 0; j < COUNT_OF_ELEMENTS_IN_VECTOR; j++)
-				temp +=
-				systemOfVectors[(i / COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j] *
-				systemOfVectors[(i % COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j];
-			matrixGram[currentIndexMainDiag + (i - currentIndexMainDiag) * COUNT_OF_VECTORS_IN_SYSTEM] = matrixGram[i] = temp;
-		}
+		unsigned char temp = 0;
+		for (int j = 0; j < COUNT_OF_ELEMENTS_IN_VECTOR; j++)
+			temp +=
+			systemOfVectors[(i / COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j] *
+			systemOfVectors[(i % COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j];
+		matrixGram[currentIndexMainDiag + (i - currentIndexMainDiag) * COUNT_OF_VECTORS_IN_SYSTEM] = matrixGram[i] = temp;
 	}
+	
 	cout << "Done\n";
 	time_h /= CLOCKS_PER_SEC;
 	return matrixGram;
-
 }
 void Check(unsigned char* matrix_Host, unsigned char* matrix_Device)
 {
