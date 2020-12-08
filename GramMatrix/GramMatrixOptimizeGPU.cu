@@ -20,7 +20,7 @@
 #define COUNT_OF_ELEMENTS_IN_VECTOR (COUNT_OF_ELEMENTS_IN_SYSTEM / COUNT_OF_VECTORS_IN_SYSTEM) //количество элементов в одном векторе
 #define SIZE_GRAM_MATRIX  (COUNT_OF_VECTORS_IN_SYSTEM * COUNT_OF_VECTORS_IN_SYSTEM)			   //размер матрицы Грама
 
-#define CACHE_COLUMNS 512 //with padding
+#define CACHE_COLUMNS 512 //without padding
 
 using namespace std;
 
