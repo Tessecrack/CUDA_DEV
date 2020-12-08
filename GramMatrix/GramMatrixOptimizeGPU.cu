@@ -15,12 +15,12 @@
 
 #define MAX_MEMORY_VECTOR 104857600	//100 МБ
 
-#define COUNT_OF_ELEMENTS_IN_SYSTEM 96000000 //общее количество элементов в системе векторов
+#define COUNT_OF_ELEMENTS_IN_SYSTEM 102400000 //общее количество элементов в системе векторов
 #define COUNT_OF_VECTORS_IN_SYSTEM 64 //количество векторов в системе
 #define COUNT_OF_ELEMENTS_IN_VECTOR (COUNT_OF_ELEMENTS_IN_SYSTEM / COUNT_OF_VECTORS_IN_SYSTEM) //количество элементов в одном векторе
 #define SIZE_GRAM_MATRIX  (COUNT_OF_VECTORS_IN_SYSTEM * COUNT_OF_VECTORS_IN_SYSTEM)			   //размер матрицы Грама
 
-#define CACHE_COLUMNS 512
+#define CACHE_COLUMNS 512 //with padding
 
 using namespace std;
 
@@ -49,8 +49,8 @@ void Check(unsigned char* matrix_Host, unsigned char* matrix_Device);
 
 __global__ void calculate_GramMatrix_GPU_Cache(unsigned char* systemOfVectors, unsigned char* gramMatrix)
 {
-	__shared__ unsigned char cacheA[32][CACHE_COLUMNS];
-	__shared__ unsigned char cacheB[32][CACHE_COLUMNS];
+	__shared__ unsigned char cacheA[32][CACHE_COLUMNS + 4];
+	__shared__ unsigned char cacheB[32][CACHE_COLUMNS + 4];
 	unsigned char reg_temp = 0;
 	
 	for (int part = 0; part < COUNT_OF_ELEMENTS_IN_VECTOR / CACHE_COLUMNS; part++)
@@ -62,20 +62,20 @@ __global__ void calculate_GramMatrix_GPU_Cache(unsigned char* systemOfVectors, u
 		int t = threadIdx.y * 32 + threadIdx.x;
 		for (int cachePart = 0; cachePart < 16; cachePart++)
 		{
-			cacheA[cachePart * 2 + t / CACHE_COLUMNS][t % CACHE_COLUMNS] 
-				= systemOfVectors[(cachePart * 2 + t / CACHE_COLUMNS + blockIdx.x * 32) * 
+			cacheA[cachePart * 2 + t / CACHE_COLUMNS][t % CACHE_COLUMNS] =
+				systemOfVectors[(cachePart * 2 + t / CACHE_COLUMNS + blockIdx.x * 32) * 
 				COUNT_OF_ELEMENTS_IN_VECTOR + t % CACHE_COLUMNS + part * CACHE_COLUMNS];
 
 
-			cacheB[cachePart * 2 + t / CACHE_COLUMNS][t % CACHE_COLUMNS]
-				= systemOfVectors[(cachePart * 2 + t / CACHE_COLUMNS + blockIdx.y * 32) * 
+			cacheB[cachePart * 2 + t / CACHE_COLUMNS][t % CACHE_COLUMNS] =
+				systemOfVectors[(cachePart * 2 + t / CACHE_COLUMNS + blockIdx.y * 32) * 
 				COUNT_OF_ELEMENTS_IN_VECTOR + t % CACHE_COLUMNS + part * CACHE_COLUMNS];
 		}
 		__syncthreads();
 		// вычисление частичнх сум для частей векторов в кэше
 		for (int i = 0; i < CACHE_COLUMNS; i++)
 		{
-			unsigned char elementFirst = cacheA[threadIdx.x][i];
+			unsigned char elementFirst =  cacheA[threadIdx.x][i];
 			unsigned char elementSecond = cacheB[threadIdx.y][i];
 			reg_temp += elementFirst * elementSecond;
 		}
@@ -117,7 +117,7 @@ int main()
 	cout << "Time CPU: " << timeCPU << endl;
 	cout << "Time GPU: " << timeGPU << endl;
 	cout << "\n--------\n";
-	InfoResult(matrixGramCPU, matrixGramGPU);
+	//InfoResult(matrixGramCPU, matrixGramGPU);
 	cin.get();
 	return 0;
 }
@@ -155,7 +155,7 @@ unsigned char* GetGramMatrixGPU(unsigned char* systemOfVectors, float& time_d)
 	//calculate_GramMatrix_GPU<<<1, 1024>>>(systemOfVectors_GPU, matrixGram_GPU);
 	calculate_GramMatrix_GPU_Cache <<<dim3(COUNT_OF_VECTORS_IN_SYSTEM / 32, COUNT_OF_VECTORS_IN_SYSTEM / 32, 1),
 		dim3(32, 32, 1) >>> (systemOfVectors_GPU, matrixGram_GPU);
-	cout << "Count of blocks: " << countOfBlocks << endl;
+	//cout << "Count of blocks: " << countOfBlocks << endl;
 	
 
 	cudaEventRecord(stopCUDA, 0);
