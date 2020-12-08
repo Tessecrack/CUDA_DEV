@@ -51,31 +51,27 @@ __global__ void calculate_GramMatrix_GPU_Cache(unsigned char* systemOfVectors, u
 {
 	__shared__ unsigned char cacheA[32][CACHE_COLUMNS];
 	__shared__ unsigned char cacheB[32][CACHE_COLUMNS];
-
 	unsigned char reg_temp = 0;
+	
 	for (int part = 0; part < COUNT_OF_ELEMENTS_IN_VECTOR / CACHE_COLUMNS; part++)
 	{
 		// заполняем кэш 	
 		// у нас 32 * 32 = 1024 потоков
 		// нам нужно скопировать в кэш 32 * 1024 байтов. 
 		// чтобы всё быстро работало потоки с соседними номерами должны копировать соседние байты
-
-
 		int t = threadIdx.y * 32 + threadIdx.x;
 		for (int cachePart = 0; cachePart < 16; cachePart++)
 		{
 			cacheA[cachePart * 2 + t / CACHE_COLUMNS][t % CACHE_COLUMNS] 
-				= systemOfVectors[(cachePart * 2 + t / CACHE_COLUMNS + blockIdx.x * 32) * COUNT_OF_ELEMENTS_IN_VECTOR 
-				+ t % CACHE_COLUMNS + part * CACHE_COLUMNS];
+				= systemOfVectors[(cachePart * 2 + t / CACHE_COLUMNS + blockIdx.x * 32) * 
+				COUNT_OF_ELEMENTS_IN_VECTOR + t % CACHE_COLUMNS + part * CACHE_COLUMNS];
 
 
 			cacheB[cachePart * 2 + t / CACHE_COLUMNS][t % CACHE_COLUMNS]
-				= systemOfVectors[(cachePart * 2 + t / CACHE_COLUMNS + blockIdx.y * 32) * COUNT_OF_ELEMENTS_IN_VECTOR
-				+ t % CACHE_COLUMNS + part * CACHE_COLUMNS];
+				= systemOfVectors[(cachePart * 2 + t / CACHE_COLUMNS + blockIdx.y * 32) * 
+				COUNT_OF_ELEMENTS_IN_VECTOR + t % CACHE_COLUMNS + part * CACHE_COLUMNS];
 		}
 		__syncthreads();
-
-
 		// вычисление частичнх сум для частей векторов в кэше
 		for (int i = 0; i < CACHE_COLUMNS; i++)
 		{
@@ -121,7 +117,7 @@ int main()
 	cout << "Time CPU: " << timeCPU << endl;
 	cout << "Time GPU: " << timeGPU << endl;
 	cout << "\n--------\n";
-	if (isForPrint) InfoResult(matrixGramCPU, matrixGramGPU);
+	InfoResult(matrixGramCPU, matrixGramGPU);
 	cin.get();
 	return 0;
 }
@@ -177,24 +173,18 @@ unsigned char* GetGramMatrixGPU(unsigned char* systemOfVectors, float& time_d)
 
 unsigned char* GetGramMatrixCPU(unsigned char* systemOfVectors, float& time_h)
 {
+	cout << "Calculate on Host...\n";
 	unsigned char* matrixGram = new unsigned char[SIZE_GRAM_MATRIX];
-	for (int i = 0; i < SIZE_GRAM_MATRIX; i++) matrixGram[i] = 0;
-	cout << "Calculate on HOST...\n";
+
 	time_h = clock();
 	for (int i = 0; i < SIZE_GRAM_MATRIX; i++)
 	{
-		int currentRow = (i / COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_VECTORS_IN_SYSTEM;
-		int shiftCol  = (i / COUNT_OF_VECTORS_IN_SYSTEM);
-		int currentIndexMainDiag = currentRow + shiftCol;
-		if (i < currentIndexMainDiag) continue;
-		unsigned char temp = 0;
+		matrixGram[i] = 0;
 		for (int j = 0; j < COUNT_OF_ELEMENTS_IN_VECTOR; j++)
-			temp +=
+			matrixGram[i] +=
 			systemOfVectors[(i / COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j] *
 			systemOfVectors[(i % COUNT_OF_VECTORS_IN_SYSTEM) * COUNT_OF_ELEMENTS_IN_VECTOR + j];
-		matrixGram[currentIndexMainDiag + (i - currentIndexMainDiag) * COUNT_OF_VECTORS_IN_SYSTEM] = matrixGram[i] = temp;
 	}
-	cout << "Done\n";
 	time_h /= CLOCKS_PER_SEC;
 	return matrixGram;
 }
@@ -208,10 +198,12 @@ void Check(unsigned char* matrix_Host, unsigned char* matrix_Device)
 }
 bool IsEqual(unsigned char* firstVector, unsigned char* secondVector, size_t size)
 {	
+	int countOfMistakes = 0;
 	for (int i = 0; i < size; i++)
 		if (firstVector[i] != secondVector[i])
-			return false;
-	return true;
+			countOfMistakes++;
+	cout << "Count of miss: " << countOfMistakes << endl;
+	return countOfMistakes == 0;
 }
 unsigned char* GetRandomSystemOfVectors()
 {
@@ -253,6 +245,7 @@ void PrintVector(unsigned char* vector, size_t size)
 			for (int j = 0; j < COUNT_OF_VECTORS_IN_SYSTEM; j++)
 			{
 				cout << (int)vector[i * COUNT_OF_VECTORS_IN_SYSTEM + j] << "\t";
+				if (i * COUNT_OF_VECTORS_IN_SYSTEM + j == 200) return;
 			}
 			cout << endl;
 		}
